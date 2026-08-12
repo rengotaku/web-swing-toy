@@ -9,6 +9,7 @@ export type Tuning = Readonly<{
   minFov: number;
   maxFov: number;
   maxAnchorDistance: number;
+  groundFriction: number;
 }>;
 
 export const DEFAULT_TUNING: Tuning = {
@@ -17,9 +18,10 @@ export const DEFAULT_TUNING: Tuning = {
   groundY: 0,
   minRopeLength: 2,
   reelSpeed: 10,
-  maxSubSteps: 10,
-  maxElapsed: 0.25,
+  maxSubSteps: 120,
+  maxElapsed: 1.0,
   minFov: 60,
   maxFov: 90,
   maxAnchorDistance: 100,
+  groundFriction: 10,
 };
