@@ -54,9 +54,9 @@ export function createGame(
   const wireManager = setupWire();
   sceneManager.scene.add(wireManager.mesh);
 
-  // 4. Initial Game & Camera State (x: 6 で中心線を外し、y: 110 でビル群の上から落下猶予確保)
+  // 4. Initial Game & Camera State (x: 0, z: 0 で街路の中央、y: 250 で最高 160m のビルの上から落下)
   let swinger: Swinger = {
-    position: { x: 6, y: 110, z: 0 },
+    position: { x: 0, y: 250, z: 0 },
     velocity: { x: 0, y: 5, z: 15 },
     rope: null,
     grounded: false,
@@ -64,8 +64,8 @@ export function createGame(
   };
 
   let cameraState: CameraState = {
-    position: { x: 6, y: 115, z: -15 },
-    lookAt: { x: 6, y: 110, z: 0 },
+    position: { x: 0, y: 255, z: -15 },
+    lookAt: { x: 0, y: 250, z: 0 },
     fov: DEFAULT_TUNING.minFov,
   };
 
