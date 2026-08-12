@@ -59,7 +59,9 @@ describe("isWebGLAvailable", () => {
     );
     const mockCanvas = {
       getContext: vi.fn((contextId: string) =>
-        contextId === "webgl2" ? ({ getExtension } as unknown as WebGL2RenderingContext) : null
+        contextId === "webgl2"
+          ? ({ getExtension } as unknown as WebGL2RenderingContext)
+          : null
       ),
     } as unknown as HTMLCanvasElement;
 
