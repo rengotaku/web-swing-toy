@@ -49,6 +49,42 @@ describe("isWebGLAvailable", () => {
     }).not.toThrow();
   });
 
+  // G6: 判定のために確保したコンテキストは手放す。ブラウザが同時に持てる
+  // WebGL コンテキストの数には上限があり、上限の小さい環境では判定が
+  // 本番のレンダラの取り分を奪って、実際には使えるのに案内画面へ落ちる。
+  it("G6: releases the probe context via WEBGL_lose_context when available", () => {
+    const loseContext = vi.fn();
+    const getExtension = vi.fn((name: string) =>
+      name === "WEBGL_lose_context" ? { loseContext } : null
+    );
+    const mockCanvas = {
+      getContext: vi.fn((contextId: string) =>
+        contextId === "webgl2" ? ({ getExtension } as unknown as WebGL2RenderingContext) : null
+      ),
+    } as unknown as HTMLCanvasElement;
+
+    expect(isWebGLAvailable(mockCanvas)).toBe(true);
+    expect(getExtension).toHaveBeenCalledWith("WEBGL_lose_context");
+    expect(loseContext).toHaveBeenCalledTimes(1);
+  });
+
+  it("G7: still reports true when the probe context cannot be released", () => {
+    // 解放手段が無い環境でも判定結果は変えない（解放は後始末であって判定条件ではない）
+    const mockCanvas = {
+      getContext: vi.fn((contextId: string) =>
+        contextId === "webgl2"
+          ? ({
+              getExtension: () => {
+                throw new Error("extension lookup failed");
+              },
+            } as unknown as WebGL2RenderingContext)
+          : null
+      ),
+    } as unknown as HTMLCanvasElement;
+
+    expect(isWebGLAvailable(mockCanvas)).toBe(true);
+  });
+
   it("returns false when canvas is null or getContext method is absent", () => {
     expect(isWebGLAvailable(null)).toBe(false);
     expect(isWebGLAvailable({} as unknown as HTMLCanvasElement)).toBe(false);

@@ -13,7 +13,27 @@ export function isWebGLAvailable(canvas?: HTMLCanvasElement | null): boolean {
     }
 
     const gl = targetCanvas.getContext("webgl2");
-    return Boolean(gl);
+    if (!gl) {
+      return false;
+    }
+
+    // 検査用に取ったコンテキストは必ず手放す。ブラウザが同時に持てる WebGL
+    // コンテキストの数には上限があり、上限の小さい環境では「判定のために
+    // 確保したまま放置したコンテキスト」が本番のレンダラの取り分を奪って、
+    // 実際には使えるのに案内画面へ落ちる（自分で自分を不可にする）。
+    // 解放の手段が無い環境もあるので、失敗しても判定結果は変えない。
+    try {
+      const loseContext = (
+        gl as WebGL2RenderingContext & {
+          getExtension(name: "WEBGL_lose_context"): { loseContext(): void } | null;
+        }
+      ).getExtension("WEBGL_lose_context");
+      loseContext?.loseContext();
+    } catch {
+      // 解放できなくても判定自体は成立している
+    }
+
+    return true;
   } catch {
     return false;
   }
