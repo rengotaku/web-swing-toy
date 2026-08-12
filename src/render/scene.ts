@@ -67,24 +67,23 @@ export function setupScene(): SceneManager {
       bottomColor: { value: new THREE.Color(COLOR_SKY_LOW) },
     },
     vertexShader: `
-      varying vec3 vWorldPosition;
+      varying vec3 vLocalPosition;
       #include <common>
       void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
+        vLocalPosition = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
       uniform vec3 topColor;
       uniform vec3 bottomColor;
-      varying vec3 vWorldPosition;
+      varying vec3 vLocalPosition;
       #include <common>
       // colorspace_fragment は gl_FragColor への代入文なので main() の中だけに置く。
       // ファイルスコープに置くと関数外に文がある不正な GLSL になり、シェーダの
       // リンクが失敗して画面が黒くなる（エラーは console の警告にしか出ない）。
       void main() {
-        vec3 nPos = normalize(vWorldPosition);
+        vec3 nPos = normalize(vLocalPosition);
         float h = pow(clamp(nPos.y, 0.0, 1.0), 0.45);
         gl_FragColor = vec4(mix(bottomColor, topColor, h), 1.0);
         #include <colorspace_fragment>
@@ -116,9 +115,12 @@ export function setupScene(): SceneManager {
   dirLight.position.set(50, 100, 50);
   scene.add(dirLight);
 
-  // カメラに空の球体を追従させる
+  // カメラ追従: 空球体の平行移動 & 地面の格子単位スナップ追従 (泳ぎ防止)
   const updateSkyPosition = (cameraPos: THREE.Vector3) => {
     skyMesh.position.copy(cameraPos);
+    // 地面テクスチャの格子間隔 10m 単位でスナップ
+    groundMesh.position.x = Math.floor(cameraPos.x / 10) * 10;
+    groundMesh.position.z = Math.floor(cameraPos.z / 10) * 10;
   };
 
   // リソース破棄処理
