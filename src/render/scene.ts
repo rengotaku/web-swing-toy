@@ -68,6 +68,7 @@ export function setupScene(): SceneManager {
     },
     vertexShader: `
       varying vec3 vWorldPosition;
+      #include <common>
       void main() {
         vec4 worldPosition = modelMatrix * vec4(position, 1.0);
         vWorldPosition = worldPosition.xyz;
@@ -78,10 +79,15 @@ export function setupScene(): SceneManager {
       uniform vec3 topColor;
       uniform vec3 bottomColor;
       varying vec3 vWorldPosition;
+      #include <common>
+      // colorspace_fragment は gl_FragColor への代入文なので main() の中だけに置く。
+      // ファイルスコープに置くと関数外に文がある不正な GLSL になり、シェーダの
+      // リンクが失敗して画面が黒くなる（エラーは console の警告にしか出ない）。
       void main() {
         vec3 nPos = normalize(vWorldPosition);
-        float h = clamp(nPos.y * 0.5 + 0.5, 0.0, 1.0);
+        float h = pow(clamp(nPos.y, 0.0, 1.0), 0.45);
         gl_FragColor = vec4(mix(bottomColor, topColor, h), 1.0);
+        #include <colorspace_fragment>
       }
     `,
     side: THREE.BackSide,

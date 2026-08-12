@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { advanceSwinger, DEFAULT_TUNING, stepCamera } from "../engine";
 import type { CameraState, Swinger } from "../engine";
+import { setupCity } from "./city";
 import { createGameLoop } from "./loop";
 import { setupScene } from "./scene";
 
@@ -33,8 +34,10 @@ export function createGame(container: HTMLElement): Game {
     2000
   );
 
-  // 3. Scene
+  // 3. Scene & City
   const sceneManager = setupScene();
+  const cityManager = setupCity();
+  sceneManager.scene.add(cityManager.mesh);
 
   // 4. Initial Game & Camera State
   let swinger: Swinger = {
@@ -50,6 +53,8 @@ export function createGame(container: HTMLElement): Game {
     lookAt: { x: 0, y: 30, z: 0 },
     fov: DEFAULT_TUNING.minFov,
   };
+
+  cityManager.update(swinger.position);
 
   // 5. Resize handler
   const handleResize = () => {
@@ -72,6 +77,9 @@ export function createGame(container: HTMLElement): Game {
   const loop = createGameLoop((dt) => {
     // 物理・プレイヤー位置更新
     swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING);
+
+    // ビル描画更新 (プレイヤー位置追従)
+    cityManager.update(swinger.position);
 
     // カメラ位置・FOV更新
     cameraState = stepCamera(
@@ -109,6 +117,7 @@ export function createGame(container: HTMLElement): Game {
     window.removeEventListener("resize", handleResize);
     resizeObserver.disconnect();
 
+    cityManager.dispose();
     sceneManager.dispose();
     renderer.dispose();
     if (renderer.domElement.parentElement) {
