@@ -10,6 +10,11 @@ export type Tuning = Readonly<{
   maxFov: number;
   maxAnchorDistance: number;
   groundFriction: number;
+  cellSize: number;
+  buildingDensity: number;
+  minBuildingHeight: number;
+  maxBuildingHeight: number;
+  buildingMargin: number;
 }>;
 
 export const DEFAULT_TUNING: Tuning = {
@@ -24,4 +29,9 @@ export const DEFAULT_TUNING: Tuning = {
   maxFov: 90,
   maxAnchorDistance: 100,
   groundFriction: 10,
+  cellSize: 20,
+  buildingDensity: 0.7,
+  minBuildingHeight: 10,
+  maxBuildingHeight: 50,
+  buildingMargin: 2,
 };
