@@ -25,12 +25,17 @@ export type Game = {
 export function createGame(
   container: HTMLElement,
   hudElement?: HTMLElement | null
-): Game {
+): Game | null {
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
   // 1. Renderer
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let renderer: THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch {
+    return null;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   renderer.domElement.style.display = "block";

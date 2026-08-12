@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useGame } from "./ui/useGame";
+import { WebGLUnavailable } from "./ui/WebGLUnavailable";
 
 /**
  * Application shell.
@@ -15,7 +16,11 @@ function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
 
-  useGame(stageRef, hudRef);
+  const { isAvailable } = useGame(stageRef, hudRef);
+
+  if (!isAvailable) {
+    return <WebGLUnavailable />;
+  }
 
   return (
     <main className="relative h-full w-full overflow-hidden">
