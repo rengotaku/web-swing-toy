@@ -22,7 +22,7 @@ export default defineConfig({
       // context — and the HUD is a visual surface. Both are verified with
       // screenshots instead, so including them here would only invite
       // tautological tests that pass while the screen is broken.
-      include: ["src/engine/**/*.ts", "src/hooks/**/*.ts"],
+      include: ["src/engine/**/*.ts", "src/hooks/**/*.ts", "src/lib/**/*.ts"],
       exclude: ["**/*.test.ts", "**/*.test.tsx"],
     },
   },

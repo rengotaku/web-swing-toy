@@ -13,7 +13,13 @@ export function useGame(
     const container = containerRef.current;
     if (!container) return;
 
-    const game = createGame(container, hudRef?.current);
+    let game;
+    try {
+      game = createGame(container, hudRef?.current);
+    } catch {
+      return;
+    }
+    if (!game) return;
 
     return () => {
       game.dispose();
