@@ -9,12 +9,18 @@ import {
 } from "../engine";
 import type { CameraState, Swinger } from "../engine";
 import { createAnchorRay, setupPointerInput } from "../input/pointer";
+import { createHudStore } from "../lib/hudStore";
+import type { HudStore, ReticleState } from "../lib/hudStore";
+import { createHintTracker } from "../lib/hintTracker";
+import type { HintTracker } from "../lib/hintTracker";
 import { setupCity } from "./city";
 import { createGameLoop } from "./loop";
 import { setupScene } from "./scene";
 import { setupWire } from "./wire";
 
 export type Game = {
+  hudStore: HudStore;
+  hintTracker: HintTracker;
   dispose: () => void;
 };
 
@@ -22,10 +28,7 @@ export type Game = {
  * ゲームエンジンと描画レイヤーを初期化してループを開始する。
  * React StrictMode での二重マウントに備え、dispose() で完全に後片付けを行う。
  */
-export function createGame(
-  container: HTMLElement,
-  hudElement?: HTMLElement | null
-): Game | null {
+export function createGame(container: HTMLElement): Game | null {
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
@@ -56,10 +59,14 @@ export function createGame(
   const cityManager = setupCity();
   sceneManager.scene.add(cityManager.mesh);
 
-  const wireManager = setupWire();
+  const wireManager = setupWire(width, height);
   sceneManager.scene.add(wireManager.mesh);
 
-  // 4. Initial Game & Camera State (x: 0, z: 0 で街路の中央、y: 250 で最高 160m のビルの上から落下)
+  // Stores & Trackers
+  const hudStore = createHudStore(1000 / 12);
+  const hintTracker = createHintTracker();
+
+  // 4. Initial Game & Camera State
   let swinger: Swinger = {
     position: { x: 0, y: 250, z: 0 },
     velocity: { x: 0, y: 5, z: 15 },
@@ -77,11 +84,14 @@ export function createGame(
   cityManager.update(swinger.position);
   wireManager.update(swinger);
 
-  // 自動リランチ管理変数 (grounded && speed < 3.0 が 1.2 秒継続で発動)
+  // 自動リランチ管理変数
   let lowSpeedGroundedTime = 0;
   let isRelaunching = false;
   let relaunchElapsed = 0;
   let relaunchStartPos = { x: 0, y: 0, z: 0 };
+
+  // レティクル状態（毎フレーム更新。配信側で離散変化として即時通知される）
+  let currentReticleState: ReticleState = { locked: false, distance: null };
 
   // 5. Pointer Input setup
   const pointerInput = setupPointerInput(container, {
@@ -91,10 +101,14 @@ export function createGame(
       const hit = pickAnchor(ray, DEFAULT_TUNING);
       if (hit) {
         swinger = attachRope(swinger, hit.point, DEFAULT_TUNING);
+        hintTracker.onAttach();
       }
     },
     onRelease: () => {
       if (isRelaunching) return;
+      if (swinger.rope) {
+        hintTracker.onDetach();
+      }
       swinger = detachRope(swinger);
     },
   });
@@ -108,6 +122,7 @@ export function createGame(
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
+    wireManager.setResolution(w, h);
   };
 
   const resizeObserver = new ResizeObserver(() => {
@@ -126,6 +141,7 @@ export function createGame(
 
     if (isRelaunching) {
       if (swinger.rope) {
+        hintTracker.onDetach();
         swinger = detachRope(swinger);
       }
 
@@ -164,7 +180,7 @@ export function createGame(
     } else {
       const reeling = pointerInput.isPointerDown();
 
-      // 物理・プレイヤー位置更新 (長押し中は reeling: true)
+      // 物理・プレイヤー位置更新
       swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING, { reeling });
 
       if (swinger.grounded && currentSpeed < 3.0) {
@@ -173,6 +189,9 @@ export function createGame(
           isRelaunching = true;
           relaunchElapsed = 0;
           relaunchStartPos = { ...swinger.position };
+          if (swinger.rope) {
+            hintTracker.onDetach();
+          }
           swinger = detachRope(swinger);
         }
       } else {
@@ -180,7 +199,21 @@ export function createGame(
       }
     }
 
-    // ビル描画更新 (プレイヤー位置追従)
+    // レティクルの判定は毎フレーム行う。実測で pickAnchor は近傍ビル数十件の
+    // AABB 判定にすぎず、60fps でも負荷にならない（RTX 4080 SUPER・2560x1440 で
+    // vsync に張り付いたまま）。ここを間引くと得られるのは節約ではなく、
+    // 照準がロックするまでの遅れだけ。画面が記憶される要素なので遅らせない。
+    {
+      const ndc = pointerInput.getPointerNDC() ?? { x: 0, y: 0 };
+      const ray = createAnchorRay(ndc, camera);
+      const hit = pickAnchor(ray, DEFAULT_TUNING);
+      currentReticleState = {
+        locked: hit !== null,
+        distance: hit ? hit.distance : null,
+      };
+    }
+
+    // ビル描画更新
     cityManager.update(swinger.position);
 
     // ワイヤー描画更新
@@ -210,16 +243,13 @@ export function createGame(
     // 空の位置更新
     sceneManager.updateSkyPosition(camera.position);
 
-    // HUD 表示更新 (速度・高度)
-    if (hudElement) {
-      const speed = Math.sqrt(
-        swinger.velocity.x * swinger.velocity.x +
-          swinger.velocity.y * swinger.velocity.y +
-          swinger.velocity.z * swinger.velocity.z
-      );
-      const alt = Math.max(0, swinger.position.y);
-      hudElement.textContent = `SPD: ${speed.toFixed(1)} m/s | ALT: ${alt.toFixed(1)} m`;
-    }
+    // 12Hz 間引きストアへのデータ供給 (生の数値)
+    const alt = Math.max(0, swinger.position.y);
+    hudStore.update({
+      speed: currentSpeed,
+      altitude: alt,
+      reticle: currentReticleState,
+    });
 
     // 描画
     renderer.render(sceneManager.scene, camera);
@@ -233,6 +263,7 @@ export function createGame(
     window.removeEventListener("resize", handleResize);
     resizeObserver.disconnect();
 
+    hudStore.dispose();
     pointerInput.dispose();
     wireManager.dispose();
     cityManager.dispose();
@@ -244,6 +275,8 @@ export function createGame(
   };
 
   return {
+    hudStore,
+    hintTracker,
     dispose,
   };
 }
