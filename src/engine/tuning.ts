@@ -8,6 +8,7 @@ export type Tuning = Readonly<{
   maxElapsed: number;
   minFov: number;
   maxFov: number;
+  minAnchorDistance: number;
   maxAnchorDistance: number;
   groundFriction: number;
   cellSize: number;
@@ -32,6 +33,7 @@ export const DEFAULT_TUNING: Tuning = {
   maxElapsed: 1.0,
   minFov: 60,
   maxFov: 90,
+  minAnchorDistance: 12,
   maxAnchorDistance: 100,
   groundFriction: 10,
   cellSize: 20,

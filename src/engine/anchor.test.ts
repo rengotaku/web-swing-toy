@@ -160,4 +160,51 @@ describe("anchor", () => {
     expect(hit!.point.z).toBeCloseTo(10, 5);
     expect(hit!.distance).toBeCloseTo(10 * Math.SQRT2, 5);
   });
+
+  const nearBuilding: Building = {
+    min: vec3(3, 0, -5),
+    max: vec3(5, 30, 5),
+  };
+
+  const farBuilding: Building = {
+    min: vec3(30, 0, -5),
+    max: vec3(40, 30, 5),
+  };
+
+  it("A10: ray の 3m 先に AABB、その先 30m にもう 1 つ AABB。minAnchorDistance = 12 の場合、奥の AABB (30m) を返す", () => {
+    const ray: Ray = {
+      origin: vec3(0, 10, 0),
+      direction: vec3(1, 0, 0),
+    };
+
+    const hit = raycastBuildings(ray, [nearBuilding, farBuilding], 100, 12);
+
+    expect(hit).not.toBeNull();
+    expect(hit!.building).toBe(farBuilding);
+    expect(hit!.distance).toBeCloseTo(30, 6);
+  });
+
+  it("A11: ray の 3m 先にだけ AABB。minAnchorDistance = 12 の場合、null を返す", () => {
+    const ray: Ray = {
+      origin: vec3(0, 10, 0),
+      direction: vec3(1, 0, 0),
+    };
+
+    const hit = raycastBuildings(ray, [nearBuilding], 100, 12);
+
+    expect(hit).toBeNull();
+  });
+
+  it("A12: ray の 30m 先に AABB。minAnchorDistance = 12 の場合、30m のヒットを返す", () => {
+    const ray: Ray = {
+      origin: vec3(0, 10, 0),
+      direction: vec3(1, 0, 0),
+    };
+
+    const hit = raycastBuildings(ray, [farBuilding], 100, 12);
+
+    expect(hit).not.toBeNull();
+    expect(hit!.building).toBe(farBuilding);
+    expect(hit!.distance).toBeCloseTo(30, 6);
+  });
 });

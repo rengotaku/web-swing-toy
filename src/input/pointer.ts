@@ -68,8 +68,9 @@ export function createAnchorRay(
       y: swinger.position.y + 1.5,
       z: swinger.position.z,
     };
-    let dy = ray.direction.y + 0.35;
-    if (dy < 0.1) dy = 0.1;
+    // カメラからの下向き視線を打ち消し、手前のビル屋上を越える急角度で上に向ける
+    let dy = ray.direction.y + 0.75;
+    if (dy < 0.4) dy = 0.4;
 
     const dirVec = new THREE.Vector3(ray.direction.x, dy, ray.direction.z).normalize();
     return {
