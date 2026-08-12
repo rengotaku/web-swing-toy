@@ -15,7 +15,7 @@ describe("isWebGLAvailable", () => {
     expect(isWebGLAvailable(mockCanvas)).toBe(true);
   });
 
-  it("G2: returns true when getContext returns null for WebGL2 but returns a context for WebGL1", () => {
+  it("G2': returns false when getContext returns null for WebGL2 even if WebGL1 context is available", () => {
     const mockCanvas = {
       getContext: vi.fn((contextId: string) => {
         if (contextId === "webgl") {
@@ -25,7 +25,7 @@ describe("isWebGLAvailable", () => {
       }),
     } as unknown as HTMLCanvasElement;
 
-    expect(isWebGLAvailable(mockCanvas)).toBe(true);
+    expect(isWebGLAvailable(mockCanvas)).toBe(false);
   });
 
   it("G3: returns false when getContext always returns null", () => {

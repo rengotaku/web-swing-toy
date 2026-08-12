@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { isWebGLAvailable } from "./lib/webgl";
 import { useGame } from "./ui/useGame";
 import { WebGLUnavailable } from "./ui/WebGLUnavailable";
 
@@ -17,11 +16,9 @@ function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
 
-  const available = isWebGLAvailable();
+  const { isAvailable } = useGame(stageRef, hudRef);
 
-  useGame(available ? stageRef : { current: null }, available ? hudRef : undefined);
-
-  if (!available) {
+  if (!isAvailable) {
     return <WebGLUnavailable />;
   }
 
