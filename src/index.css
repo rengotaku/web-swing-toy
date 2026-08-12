@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/*
+ * Web Swing Toy — design tokens.
+ *
+ * The scene is a dawn sky above a city. Everything on screen is desaturated
+ * except the wire, so the wire (and the reticle that predicts it) is the one
+ * element the eye locks onto.
+ */
+:root {
+  --sky-high: #1b2b52;
+  --sky-low: #f0a06a;
+  --ink: #0b1020;
+  --wire: #7ef3d6;
+  --hud: #e9f0ff;
+  --danger: #ff6b5e;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink);
+  color: var(--hud);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    "Hiragino Sans",
+    "Noto Sans JP",
+    sans-serif;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* HUD readouts never jitter: fixed-width digits at 60fps. */
+.tabular {
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
