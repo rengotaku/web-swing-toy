@@ -1,9 +1,18 @@
 import * as THREE from "three";
-import { advanceSwinger, DEFAULT_TUNING, stepCamera } from "../engine";
+import {
+  advanceSwinger,
+  attachRope,
+  DEFAULT_TUNING,
+  detachRope,
+  pickAnchor,
+  stepCamera,
+} from "../engine";
 import type { CameraState, Swinger } from "../engine";
+import { createRayFromPointer, setupPointerInput } from "../input/pointer";
 import { setupCity } from "./city";
 import { createGameLoop } from "./loop";
 import { setupScene } from "./scene";
+import { setupWire } from "./wire";
 
 export type Game = {
   dispose: () => void;
@@ -34,10 +43,13 @@ export function createGame(container: HTMLElement): Game {
     2000
   );
 
-  // 3. Scene & City
+  // 3. Scene, City & Wire
   const sceneManager = setupScene();
   const cityManager = setupCity();
   sceneManager.scene.add(cityManager.mesh);
+
+  const wireManager = setupWire();
+  sceneManager.scene.add(wireManager.mesh);
 
   // 4. Initial Game & Camera State
   let swinger: Swinger = {
@@ -55,8 +67,23 @@ export function createGame(container: HTMLElement): Game {
   };
 
   cityManager.update(swinger.position);
+  wireManager.update(swinger);
 
-  // 5. Resize handler
+  // 5. Pointer Input setup
+  const pointerInput = setupPointerInput(container, {
+    onPress: (ndc) => {
+      const ray = createRayFromPointer(ndc, camera);
+      const hit = pickAnchor(ray, DEFAULT_TUNING);
+      if (hit) {
+        swinger = attachRope(swinger, hit.point, DEFAULT_TUNING);
+      }
+    },
+    onRelease: () => {
+      swinger = detachRope(swinger);
+    },
+  });
+
+  // 6. Resize handler
   const handleResize = () => {
     const w = container.clientWidth || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
@@ -73,13 +100,18 @@ export function createGame(container: HTMLElement): Game {
   resizeObserver.observe(container);
   window.addEventListener("resize", handleResize);
 
-  // 6. Game Loop
+  // 7. Game Loop
   const loop = createGameLoop((dt) => {
-    // 物理・プレイヤー位置更新
-    swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING);
+    const reeling = pointerInput.isPointerDown();
+
+    // 物理・プレイヤー位置更新 (長押し中は reeling: true)
+    swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING, { reeling });
 
     // ビル描画更新 (プレイヤー位置追従)
     cityManager.update(swinger.position);
+
+    // ワイヤー描画更新
+    wireManager.update(swinger);
 
     // カメラ位置・FOV更新
     cameraState = stepCamera(
@@ -111,12 +143,14 @@ export function createGame(container: HTMLElement): Game {
 
   loop.start();
 
-  // 7. Clean up
+  // 8. Clean up
   const dispose = () => {
     loop.stop();
     window.removeEventListener("resize", handleResize);
     resizeObserver.disconnect();
 
+    pointerInput.dispose();
+    wireManager.dispose();
     cityManager.dispose();
     sceneManager.dispose();
     renderer.dispose();
