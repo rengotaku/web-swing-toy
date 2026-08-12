@@ -1,5 +1,5 @@
 import type { Tuning } from "./tuning";
-import { add, scale, type Vec3 } from "./vec3";
+import { add, length, scale, type Vec3 } from "./vec3";
 import { type Building, buildingsNear } from "./world";
 
 export type Ray = Readonly<{ origin: Vec3; direction: Vec3 }>;
@@ -51,14 +51,25 @@ export function raycastBuildings(
   buildings: readonly Building[],
   maxDistance: number
 ): AnchorHit | null {
+  const dirLen = length(ray.direction);
+  if (dirLen < 1e-12) {
+    return null;
+  }
+
+  // 方向ベクトルを正規化して実距離 t で判定する (P2/A8/A9 対応)
+  const normRay: Ray = {
+    origin: ray.origin,
+    direction: scale(ray.direction, 1 / dirLen),
+  };
+
   let closestHit: AnchorHit | null = null;
   let minDistance = maxDistance;
 
   for (const b of buildings) {
-    const t = rayIntersectAABB(ray, b);
+    const t = rayIntersectAABB(normRay, b);
     if (t !== null && t >= 0 && t <= minDistance) {
       minDistance = t;
-      const point = add(ray.origin, scale(ray.direction, t));
+      const point = add(normRay.origin, scale(normRay.direction, t));
       closestHit = {
         point,
         distance: t,

@@ -104,6 +104,31 @@ describe("anchor", () => {
     expect(hit!.distance).toBeCloseTo(10, 6);
   });
 
+  it("A8: 大きさ 2 の非正規化 direction を持つ ray でも distance が実距離 10 を返す", () => {
+    const ray: Ray = {
+      origin: vec3(0, 10, 0),
+      direction: vec3(2, 0, 0), // 大きさ 2
+    };
+
+    const hit = raycastBuildings(ray, [building1], 100);
+
+    expect(hit).not.toBeNull();
+    expect(hit!.distance).toBeCloseTo(10, 9);
+    expect(hit!.point.x).toBeCloseTo(10, 6);
+  });
+
+  it("A9: 大きさ 2 の非正規化 ray で maxDistance = 5 の場合、実距離 10 は範囲外のため null を返す", () => {
+    const ray: Ray = {
+      origin: vec3(0, 10, 0),
+      direction: vec3(2, 0, 0), // 大きさ 2
+    };
+
+    // 実距離は 10m。maxDistance = 5m なのでヒットしないはず。
+    const hit = raycastBuildings(ray, [building1], 5.0);
+
+    expect(hit).toBeNull();
+  });
+
   it("pickAnchor が近傍ビルを集めて正しく判定する", () => {
     const ray: Ray = {
       origin: vec3(0, 10, 0),
@@ -126,7 +151,7 @@ describe("anchor", () => {
     const invSqrt2 = 1 / Math.SQRT2;
     const ray: Ray = {
       origin: vec3(0, 5, 0),
-      direction: vec3(invSqrt2, 0, invSqrt2), // XZ 平面の斜め 45 度
+      direction: vec3(invSqrt2, 0, invSqrt2),
     };
 
     const hit = raycastBuildings(ray, [b], 100);

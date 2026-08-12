@@ -7,6 +7,7 @@ export type Swinger = Readonly<{
   velocity: Vec3;
   rope: Rope | null;
   grounded: boolean;
+  accumulator: number;
 }>;
 
 export const FIXED_DT = 1 / 120;
@@ -19,6 +20,7 @@ export function attachRope(state: Swinger, anchor: Vec3): Swinger {
       anchor,
       length: dist,
     },
+    accumulator: state.accumulator ?? 0,
   };
 }
 
@@ -26,6 +28,7 @@ export function detachRope(state: Swinger): Swinger {
   return {
     ...state,
     rope: null,
+    accumulator: state.accumulator ?? 0,
   };
 }
 
@@ -36,11 +39,32 @@ export function advanceSwinger(
   tuning: Tuning,
   opts?: { reeling?: boolean }
 ): Swinger {
+  // 1. elapsed を先に maxElapsed でクランプする
   const clampedElapsed = Math.max(0, Math.min(elapsed, tuning.maxElapsed));
-  const totalSteps = Math.min(Math.floor(clampedElapsed / FIXED_DT), tuning.maxSubSteps);
 
-  if (totalSteps <= 0) {
-    return state;
+  // 2. クランプ後の値を accumulator に加算する
+  const accum = (state.accumulator ?? 0) + clampedElapsed;
+
+  // 3. 消費ステップ数と繰り越し accumulator を算出する（浮動小数点誤差の 1e-9 イプシロン補正）
+  const numSteps = Math.floor((accum + 1e-9) / FIXED_DT);
+
+  let stepsToRun: number;
+  let nextAccumulator: number;
+
+  if (numSteps > tuning.maxSubSteps) {
+    // maxSubSteps に達した場合は上限で実行し、残りの accumulator を破棄（spiral of death 防止）
+    stepsToRun = tuning.maxSubSteps;
+    nextAccumulator = 0;
+  } else {
+    stepsToRun = numSteps;
+    nextAccumulator = Math.max(0, accum - stepsToRun * FIXED_DT);
+  }
+
+  if (stepsToRun <= 0) {
+    return {
+      ...state,
+      accumulator: nextAccumulator,
+    };
   }
 
   let pos = state.position;
@@ -48,7 +72,7 @@ export function advanceSwinger(
   let rope = state.rope;
   let grounded = state.grounded;
 
-  for (let step = 0; step < totalSteps; step++) {
+  for (let step = 0; step < stepsToRun; step++) {
     // 1. 重力を速度に積む
     vel = {
       x: vel.x,
@@ -105,5 +129,6 @@ export function advanceSwinger(
     velocity: vel,
     rope,
     grounded,
+    accumulator: nextAccumulator,
   };
 }
