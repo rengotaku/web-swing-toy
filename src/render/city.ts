@@ -26,6 +26,13 @@ export function setupCity(): CityManager {
   const mesh = new THREE.InstancedMesh(boxGeometry, material, MAX_BUILDINGS);
   mesh.count = 0;
 
+  // このメッシュは常にプレイヤーの周囲に作り直されるので、メッシュ単位の
+  // フラスタムカリングは利益が無い一方で害がある。InstancedMesh の
+  // boundingSphere はインスタンス行列を書き換えても自動では追従しないため、
+  // 有効なままだと、初期位置から離れたときに古い境界球で判定され
+  // 「周囲にビルがあるはずなのに街ごと消える」ことになる（エラーは出ない）。
+  mesh.frustumCulled = false;
+
   // 毎フレームの Matrix4 / Object3D 生成を防ぐためのダミーオブジェクト
   const dummy = new THREE.Object3D();
 
