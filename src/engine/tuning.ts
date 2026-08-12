@@ -8,6 +8,7 @@ export type Tuning = Readonly<{
   maxElapsed: number;
   minFov: number;
   maxFov: number;
+  minAnchorDistance: number;
   maxAnchorDistance: number;
   groundFriction: number;
   cellSize: number;
@@ -32,13 +33,14 @@ export const DEFAULT_TUNING: Tuning = {
   maxElapsed: 1.0,
   minFov: 60,
   maxFov: 90,
-  maxAnchorDistance: 100,
+  minAnchorDistance: 12,
+  maxAnchorDistance: 180,
   groundFriction: 10,
-  cellSize: 20,
+  cellSize: 60,
   buildingDensity: 0.7,
-  minBuildingHeight: 10,
-  maxBuildingHeight: 50,
-  buildingMargin: 2,
+  minBuildingHeight: 30,
+  maxBuildingHeight: 160,
+  buildingMargin: 15,
   cameraDistance: 15,
   cameraHeight: 5,
   cameraTau: 0.15,

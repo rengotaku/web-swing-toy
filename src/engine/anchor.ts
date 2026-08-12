@@ -49,7 +49,8 @@ function rayIntersectAABB(ray: Ray, b: Building): number | null {
 export function raycastBuildings(
   ray: Ray,
   buildings: readonly Building[],
-  maxDistance: number
+  maxDistance: number,
+  minDistance: number = 0
 ): AnchorHit | null {
   const dirLen = length(ray.direction);
   if (dirLen < 1e-12) {
@@ -63,12 +64,13 @@ export function raycastBuildings(
   };
 
   let closestHit: AnchorHit | null = null;
-  let minDistance = maxDistance;
+  let closestDist = maxDistance;
 
   for (const b of buildings) {
     const t = rayIntersectAABB(normRay, b);
-    if (t !== null && t >= 0 && t <= minDistance) {
-      minDistance = t;
+    // minDistance 未満のヒットは先に除外してから最近傍を取る (A10 対応)
+    if (t !== null && t >= minDistance && t <= closestDist) {
+      closestDist = t;
       const point = add(normRay.origin, scale(normRay.direction, t));
       closestHit = {
         point,
@@ -83,5 +85,10 @@ export function raycastBuildings(
 
 export function pickAnchor(ray: Ray, tuning: Tuning): AnchorHit | null {
   const buildings = buildingsNear(ray.origin, tuning.maxAnchorDistance, tuning);
-  return raycastBuildings(ray, buildings, tuning.maxAnchorDistance);
+  return raycastBuildings(
+    ray,
+    buildings,
+    tuning.maxAnchorDistance,
+    tuning.minAnchorDistance ?? 0
+  );
 }
