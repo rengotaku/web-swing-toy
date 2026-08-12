@@ -10,9 +10,11 @@ export function solveRope(
   const offset = sub(position, rope.anchor);
   const dist = length(offset);
 
-  // 距離がワイヤー長以下の場合は拘束が働かないためそのまま返す
-  // 距離がほぼ 0 (零除算ガード) の場合も同様にそのまま返す
-  if (dist <= rope.length || dist < 1e-9) {
+  // ワイヤーがたるんでいる間だけ非干渉。距離がワイヤー長と一致する「張った」状態は
+  // 拘束が効いている状態なので、ここで抜けてはいけない（位置の射影は恒等になるが、
+  // 外向きの速度は除去する必要がある。ワイヤーは押せないが、伸びもしない）。
+  // 距離がほぼ 0 のときは方向が定まらないため零除算ガードとしてそのまま返す。
+  if (dist < rope.length || dist < 1e-9) {
     return { position, velocity };
   }
 

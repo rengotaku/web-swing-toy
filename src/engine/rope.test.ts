@@ -108,4 +108,47 @@ describe("rope", () => {
     const wireDir = normalize(sub(position, anchor));
     expect(dot(result.velocity, wireDir)).toBeCloseTo(0, 9);
   });
+
+  // R7〜R9: 距離がワイヤー長と「ちょうど一致」する張った状態の境界。
+  // solveRope は公開 API なので、advanceSwinger が solve の前に必ず位置を進める
+  // という呼び出し側の都合に依存せず、単体で正しく振る舞う必要がある。
+  it("R7: 距離がワイヤー長ちょうどで速度が外向きなら、外向き成分が除去される", () => {
+    const anchor = vec3(0, 0, 0);
+    const rope: Rope = { anchor, length: 10 };
+    const position = vec3(10, 0, 0); // 距離ちょうど 10
+    const velocity = vec3(5, 0, 0); // 外向き
+
+    const result = solveRope(position, velocity, rope);
+
+    const wireDir = normalize(sub(position, anchor));
+    expect(dot(result.velocity, wireDir)).toBeCloseTo(0, 9);
+    // 位置の射影は恒等（既に球面上にある）
+    expect(length(sub(result.position, anchor))).toBeCloseTo(10, 9);
+  });
+
+  it("R8: 距離がワイヤー長ちょうどで速度が接線方向なら、速度は変化しない", () => {
+    const anchor = vec3(0, 0, 0);
+    const rope: Rope = { anchor, length: 10 };
+    const position = vec3(10, 0, 0);
+    const velocity = vec3(0, 5, 0); // 接線方向
+
+    const result = solveRope(position, velocity, rope);
+
+    expect(result.velocity.x).toBeCloseTo(0, 9);
+    expect(result.velocity.y).toBeCloseTo(5, 9);
+    expect(result.velocity.z).toBeCloseTo(0, 9);
+  });
+
+  it("R9: 距離がワイヤー長ちょうどで速度が内向きなら、速度は変化しない", () => {
+    const anchor = vec3(0, 0, 0);
+    const rope: Rope = { anchor, length: 10 };
+    const position = vec3(10, 0, 0);
+    const velocity = vec3(-5, 0, 0); // 内向き（ワイヤーは押せない）
+
+    const result = solveRope(position, velocity, rope);
+
+    expect(result.velocity.x).toBeCloseTo(-5, 9);
+    expect(result.velocity.y).toBeCloseTo(0, 9);
+    expect(result.velocity.z).toBeCloseTo(0, 9);
+  });
 });
