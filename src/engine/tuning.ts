@@ -15,6 +15,11 @@ export type Tuning = Readonly<{
   minBuildingHeight: number;
   maxBuildingHeight: number;
   buildingMargin: number;
+  cameraDistance: number;
+  cameraHeight: number;
+  cameraTau: number;
+  fovSpeedGain: number;
+  fovFallGain: number;
 }>;
 
 export const DEFAULT_TUNING: Tuning = {
@@ -34,4 +39,9 @@ export const DEFAULT_TUNING: Tuning = {
   minBuildingHeight: 10,
   maxBuildingHeight: 50,
   buildingMargin: 2,
+  cameraDistance: 15,
+  cameraHeight: 5,
+  cameraTau: 0.15,
+  fovSpeedGain: 0.5,
+  fovFallGain: 0.8,
 };
