@@ -72,16 +72,24 @@ export function createGame(
   cityManager.update(swinger.position);
   wireManager.update(swinger);
 
+  // 自動リランチ管理変数 (grounded && speed < 3.0 が 1.2 秒継続で発動)
+  let lowSpeedGroundedTime = 0;
+  let isRelaunching = false;
+  let relaunchElapsed = 0;
+  let relaunchStartPos = { x: 0, y: 0, z: 0 };
+
   // 5. Pointer Input setup
   const pointerInput = setupPointerInput(container, {
     onPress: (ndc) => {
-      const ray = createAnchorRay(ndc, camera, swinger);
+      if (isRelaunching) return;
+      const ray = createAnchorRay(ndc, camera);
       const hit = pickAnchor(ray, DEFAULT_TUNING);
       if (hit) {
         swinger = attachRope(swinger, hit.point, DEFAULT_TUNING);
       }
     },
     onRelease: () => {
+      if (isRelaunching) return;
       swinger = detachRope(swinger);
     },
   });
@@ -105,10 +113,67 @@ export function createGame(
 
   // 7. Game Loop
   const loop = createGameLoop((dt) => {
-    const reeling = pointerInput.isPointerDown();
+    const currentSpeed = Math.sqrt(
+      swinger.velocity.x * swinger.velocity.x +
+        swinger.velocity.y * swinger.velocity.y +
+        swinger.velocity.z * swinger.velocity.z
+    );
 
-    // 物理・プレイヤー位置更新 (長押し中は reeling: true)
-    swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING, { reeling });
+    if (isRelaunching) {
+      if (swinger.rope) {
+        swinger = detachRope(swinger);
+      }
+
+      relaunchElapsed += dt;
+      const progress = Math.min(1.0, relaunchElapsed / 1.0);
+      const smoothT = progress * progress * (3 - 2 * progress);
+      const targetY = relaunchStartPos.y + 200;
+      const currentY = relaunchStartPos.y + (targetY - relaunchStartPos.y) * smoothT;
+
+      if (progress >= 1.0) {
+        isRelaunching = false;
+        lowSpeedGroundedTime = 0;
+        swinger = {
+          position: {
+            x: relaunchStartPos.x,
+            y: targetY,
+            z: relaunchStartPos.z,
+          },
+          velocity: { x: 0, y: 0, z: 15 },
+          rope: null,
+          grounded: false,
+          accumulator: 0,
+        };
+      } else {
+        swinger = {
+          ...swinger,
+          position: {
+            x: relaunchStartPos.x,
+            y: currentY,
+            z: relaunchStartPos.z,
+          },
+          velocity: { x: 0, y: 0, z: 0 },
+          grounded: false,
+        };
+      }
+    } else {
+      const reeling = pointerInput.isPointerDown();
+
+      // 物理・プレイヤー位置更新 (長押し中は reeling: true)
+      swinger = advanceSwinger(swinger, dt, DEFAULT_TUNING, { reeling });
+
+      if (swinger.grounded && currentSpeed < 3.0) {
+        lowSpeedGroundedTime += dt;
+        if (lowSpeedGroundedTime >= 1.2) {
+          isRelaunching = true;
+          relaunchElapsed = 0;
+          relaunchStartPos = { ...swinger.position };
+          swinger = detachRope(swinger);
+        }
+      } else {
+        lowSpeedGroundedTime = 0;
+      }
+    }
 
     // ビル描画更新 (プレイヤー位置追従)
     cityManager.update(swinger.position);
