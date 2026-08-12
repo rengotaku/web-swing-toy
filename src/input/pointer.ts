@@ -48,6 +48,42 @@ export function createRayFromPointer(ndc: NDC, camera: THREE.PerspectiveCamera):
   };
 }
 
+/**
+ * NDC 座標, Camera, Swinger 状態からアンカー判定用の Ray を生成する。
+ * 接地中 (swinger.grounded) の場合は、プレイヤー位置から周囲のビルへ向かうように
+ * Ray の起点と上向き方向を補正し、画面中央クリックでの復帰を可能にする。
+ */
+export function createAnchorRay(
+  ndc: NDC,
+  camera: THREE.PerspectiveCamera,
+  swinger: { position: { x: number; y: number; z: number }; grounded: boolean }
+): Ray {
+  reusableNDC.set(ndc.x, ndc.y);
+  reusableRaycaster.setFromCamera(reusableNDC, camera);
+  const ray = reusableRaycaster.ray;
+
+  if (swinger.grounded) {
+    const origin = {
+      x: swinger.position.x,
+      y: swinger.position.y + 1.5,
+      z: swinger.position.z,
+    };
+    let dy = ray.direction.y + 0.35;
+    if (dy < 0.1) dy = 0.1;
+
+    const dirVec = new THREE.Vector3(ray.direction.x, dy, ray.direction.z).normalize();
+    return {
+      origin,
+      direction: { x: dirVec.x, y: dirVec.y, z: dirVec.z },
+    };
+  }
+
+  return {
+    origin: { x: ray.origin.x, y: ray.origin.y, z: ray.origin.z },
+    direction: { x: ray.direction.x, y: ray.direction.y, z: ray.direction.z },
+  };
+}
+
 export type PointerInputManager = {
   isPointerDown: () => boolean;
   getPointerNDC: () => NDC | null;

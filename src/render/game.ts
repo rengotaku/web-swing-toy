@@ -8,7 +8,7 @@ import {
   stepCamera,
 } from "../engine";
 import type { CameraState, Swinger } from "../engine";
-import { createRayFromPointer, setupPointerInput } from "../input/pointer";
+import { createAnchorRay, setupPointerInput } from "../input/pointer";
 import { setupCity } from "./city";
 import { createGameLoop } from "./loop";
 import { setupScene } from "./scene";
@@ -22,7 +22,10 @@ export type Game = {
  * ゲームエンジンと描画レイヤーを初期化してループを開始する。
  * React StrictMode での二重マウントに備え、dispose() で完全に後片付けを行う。
  */
-export function createGame(container: HTMLElement): Game {
+export function createGame(
+  container: HTMLElement,
+  hudElement?: HTMLElement | null
+): Game {
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
@@ -51,18 +54,18 @@ export function createGame(container: HTMLElement): Game {
   const wireManager = setupWire();
   sceneManager.scene.add(wireManager.mesh);
 
-  // 4. Initial Game & Camera State
+  // 4. Initial Game & Camera State (x: 6 で中心線を外し、y: 110 でビル群の上から落下猶予確保)
   let swinger: Swinger = {
-    position: { x: 0, y: 30, z: 0 },
-    velocity: { x: 0, y: 0, z: 15 },
+    position: { x: 6, y: 110, z: 0 },
+    velocity: { x: 0, y: 5, z: 15 },
     rope: null,
     grounded: false,
     accumulator: 0,
   };
 
   let cameraState: CameraState = {
-    position: { x: 0, y: 35, z: -15 },
-    lookAt: { x: 0, y: 30, z: 0 },
+    position: { x: 6, y: 115, z: -15 },
+    lookAt: { x: 6, y: 110, z: 0 },
     fov: DEFAULT_TUNING.minFov,
   };
 
@@ -72,7 +75,7 @@ export function createGame(container: HTMLElement): Game {
   // 5. Pointer Input setup
   const pointerInput = setupPointerInput(container, {
     onPress: (ndc) => {
-      const ray = createRayFromPointer(ndc, camera);
+      const ray = createAnchorRay(ndc, camera, swinger);
       const hit = pickAnchor(ray, DEFAULT_TUNING);
       if (hit) {
         swinger = attachRope(swinger, hit.point, DEFAULT_TUNING);
@@ -136,6 +139,17 @@ export function createGame(container: HTMLElement): Game {
 
     // 空の位置更新
     sceneManager.updateSkyPosition(camera.position);
+
+    // HUD 表示更新 (速度・高度)
+    if (hudElement) {
+      const speed = Math.sqrt(
+        swinger.velocity.x * swinger.velocity.x +
+          swinger.velocity.y * swinger.velocity.y +
+          swinger.velocity.z * swinger.velocity.z
+      );
+      const alt = Math.max(0, swinger.position.y);
+      hudElement.textContent = `SPD: ${speed.toFixed(1)} m/s | ALT: ${alt.toFixed(1)} m`;
+    }
 
     // 描画
     renderer.render(sceneManager.scene, camera);

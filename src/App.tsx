@@ -9,15 +9,19 @@ import { useGame } from "./ui/useGame";
  */
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
 
-  useGame(stageRef);
+  useGame(stageRef, hudRef);
 
   return (
     <main className="relative h-full w-full overflow-hidden">
       <div id="stage" ref={stageRef} className="absolute inset-0" />
-      <p className="tabular absolute bottom-6 left-1/2 -translate-x-1/2 text-sm opacity-60">
-        STEP1: Stage & Physics Loop Active
-      </p>
+      <div
+        ref={hudRef}
+        className="tabular absolute top-4 left-4 rounded bg-black/40 px-3 py-1.5 text-sm font-mono text-[var(--hud)] backdrop-blur-sm"
+      >
+        SPD: 0.0 m/s | ALT: 0.0 m
+      </div>
     </main>
   );
 }
