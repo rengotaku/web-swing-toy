@@ -44,7 +44,7 @@ describe("swinger", () => {
     }
   });
 
-  it("S3: 振り子がエネルギーを保存している（最下点での速さが解析値と 5% 以内で一致）", () => {
+  it("S3: 振り子がエネルギーを保存している（最下点での速すが解析値と 5% 以内で一致）", () => {
     const anchor = vec3(0, 100, 0);
     const dropHeight = 10;
     const initialPosition = vec3(dropHeight, 100, 0);
@@ -56,7 +56,7 @@ describe("swinger", () => {
       grounded: false,
       accumulator: 0,
     };
-    state = attachRope(state, anchor);
+    state = attachRope(state, anchor, DEFAULT_TUNING);
 
     let maxSpeed = 0;
     for (let i = 0; i < 500; i++) {
@@ -87,7 +87,7 @@ describe("swinger", () => {
       grounded: false,
       accumulator: 0,
     };
-    state = attachRope(state, anchor);
+    state = attachRope(state, anchor, DEFAULT_TUNING);
     const ropeLength = state.rope!.length;
 
     for (let i = 0; i < 300; i++) {
@@ -108,7 +108,7 @@ describe("swinger", () => {
       grounded: false,
       accumulator: 0,
     };
-    state = attachRope(state, anchor);
+    state = attachRope(state, anchor, DEFAULT_TUNING);
 
     const initialRopeLength = state.rope!.length;
     state = advanceSwinger(state, 2.0, DEFAULT_TUNING, { reeling: true });
@@ -126,7 +126,7 @@ describe("swinger", () => {
       grounded: false,
       accumulator: 0,
     };
-    state = attachRope(state, anchor);
+    state = attachRope(state, anchor, DEFAULT_TUNING);
 
     for (let i = 0; i < 100; i++) {
       state = advanceSwinger(state, FIXED_DT, DEFAULT_TUNING);
@@ -231,7 +231,7 @@ describe("swinger", () => {
       accumulator: 0,
     });
 
-    const attached = attachRope(initial, anchor);
+    const attached = attachRope(initial, anchor, DEFAULT_TUNING);
     expect(initial.rope).toBeNull();
     expect(initial.position).toEqual({ x: 10, y: 50, z: 0 });
 
@@ -256,10 +256,8 @@ describe("swinger", () => {
       accumulator: 0,
     };
 
-    // 1 回で 1.0s 進めた場合
     const expected = advanceSwinger(initial, 1.0, DEFAULT_TUNING);
 
-    // 144Hz (1/144s) で 144 回進めた場合
     let state = initial;
     const dt144 = 1 / 144;
     for (let i = 0; i < 144; i++) {
@@ -279,10 +277,8 @@ describe("swinger", () => {
       accumulator: 0,
     };
 
-    // 直接 3 ステップ分 (3 * FIXED_DT) 進めた状態
     const expected = advanceSwinger(initial, FIXED_DT * 3, DEFAULT_TUNING);
 
-    // FIXED_DT * 1.5 を 2 回呼び出す
     const step1 = advanceSwinger(initial, FIXED_DT * 1.5, DEFAULT_TUNING);
     const step2 = advanceSwinger(step1, FIXED_DT * 1.5, DEFAULT_TUNING);
 
@@ -299,15 +295,12 @@ describe("swinger", () => {
       accumulator: 0,
     };
 
-    // maxElapsed 超を 100 回呼ぶ
     for (let i = 0; i < 100; i++) {
       state = advanceSwinger(state, 10.0, DEFAULT_TUNING);
     }
 
-    // 1 回あたり maxSubSteps (120 ステップ) にクランプされているので accumulator は 0 または FIXED_DT 未満に保たれているはず
     expect(state.accumulator).toBeLessThan(FIXED_DT);
 
-    // 直後に FIXED_DT を 1 回呼んだ時、積み残しによって大ステップ実行されない
     const nextState = advanceSwinger(state, FIXED_DT, DEFAULT_TUNING);
     expect(nextState.accumulator).toBeLessThan(FIXED_DT);
   });
@@ -318,21 +311,72 @@ describe("swinger", () => {
       velocity: vec3(0, 0, 0),
       rope: null,
       grounded: false,
-      accumulator: FIXED_DT * 0.5, // 端数
+      accumulator: FIXED_DT * 0.5,
     };
 
     const anchor = vec3(0, 100, 0);
-    const attached = attachRope(initial, anchor);
+    const attached = attachRope(initial, anchor, DEFAULT_TUNING);
     expect(attached.accumulator).toBeCloseTo(FIXED_DT * 0.5, 9);
 
     const detached = detachRope(attached);
     expect(detached.accumulator).toBeCloseTo(FIXED_DT * 0.5, 9);
   });
 
-  // ワイヤーを外したまま押しっぱなしにすると描画層は毎フレーム reeling: true を
-  // 渡してくる（狙ったビルに当たらなかった場合がこれ）。ここが落ちると
-  // 「撃ち損ねるとゲームが壊れる」になるので固定しておく。
-  it("ワイヤー未接続状態で reeling を指定しても壊れない", () => {
+  it("S16: アンカーが minRopeLength 未満の位置にあるとき attachRope が minRopeLength を設定する", () => {
+    const anchor = vec3(0, 100, 0);
+    const initial: Swinger = {
+      position: vec3(1.0, 100, 0),
+      velocity: vec3(0, 0, 0),
+      rope: null,
+      grounded: false,
+      accumulator: 0,
+    };
+
+    const attached = attachRope(initial, anchor, DEFAULT_TUNING);
+    expect(attached.rope!.length).toBe(DEFAULT_TUNING.minRopeLength);
+  });
+
+  it("S17: 近距離アンカーの巻き取り処理でワイヤー長が一度も増加しない（単調非増加）", () => {
+    const anchor = vec3(0, 100, 0);
+    let state: Swinger = {
+      position: vec3(1.0, 100, 0),
+      velocity: vec3(0, 0, 0),
+      rope: { anchor, length: 1.0 },
+      grounded: false,
+      accumulator: 0,
+    };
+
+    const initialLen = state.rope!.length;
+    for (let i = 0; i < 10; i++) {
+      state = advanceSwinger(state, FIXED_DT, DEFAULT_TUNING, { reeling: true });
+      expect(state.rope!.length).toBeLessThanOrEqual(initialLen);
+    }
+  });
+
+  it("S18: 通常距離のアンカーからの巻き取りで従来通り減少し minRopeLength で下限クランプされる", () => {
+    const anchor = vec3(0, 100, 0);
+    let state: Swinger = {
+      position: vec3(20, 100, 0),
+      velocity: vec3(0, 0, 0),
+      rope: null,
+      grounded: false,
+      accumulator: 0,
+    };
+    state = attachRope(state, anchor, DEFAULT_TUNING);
+
+    const startLen = state.rope!.length;
+    for (let i = 0; i < 3; i++) {
+      state = advanceSwinger(state, 1.0, DEFAULT_TUNING, { reeling: true });
+    }
+
+    expect(state.rope!.length).toBeLessThan(startLen);
+    expect(state.rope!.length).toBe(DEFAULT_TUNING.minRopeLength);
+  });
+
+  // 狙ったビルに当たらないまま押しっぱなしにしていると、描画層は rope なしのまま
+  // 毎フレーム reeling: true を渡してくる。ここが落ちると「撃ち損ねるとゲームが
+  // 壊れる」になるので固定しておく。
+  it("S19: ワイヤー未接続で reeling を指定しても壊れない", () => {
     const initial: Swinger = {
       position: vec3(0, 50, 0),
       velocity: vec3(10, 0, 0),

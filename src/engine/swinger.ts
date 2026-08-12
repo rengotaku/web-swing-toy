@@ -12,13 +12,13 @@ export type Swinger = Readonly<{
 
 export const FIXED_DT = 1 / 120;
 
-export function attachRope(state: Swinger, anchor: Vec3): Swinger {
+export function attachRope(state: Swinger, anchor: Vec3, tuning: Tuning): Swinger {
   const dist = distance(state.position, anchor);
   return {
     ...state,
     rope: {
       anchor,
-      length: dist,
+      length: Math.max(dist, tuning.minRopeLength),
     },
     accumulator: state.accumulator ?? 0,
   };
@@ -52,7 +52,6 @@ export function advanceSwinger(
   let nextAccumulator: number;
 
   if (numSteps > tuning.maxSubSteps) {
-    // maxSubSteps に達した場合は上限で実行し、残りの accumulator を破棄（spiral of death 防止）
     stepsToRun = tuning.maxSubSteps;
     nextAccumulator = 0;
   } else {
@@ -84,11 +83,11 @@ export function advanceSwinger(
     const dragFactor = Math.max(0, 1 - tuning.drag * FIXED_DT);
     vel = scale(vel, dragFactor);
 
-    // 3. 巻き取り中ならワイヤー長を縮める（minRopeLength で下限クランプ）
+    // 3. 巻き取り中ならワイヤー長を縮める（現在長を上限とし、minRopeLength で下限クランプ。P2-b 対応）
     if (opts?.reeling && rope !== null) {
-      const newLength = Math.max(
-        tuning.minRopeLength,
-        rope.length - tuning.reelSpeed * FIXED_DT
+      const newLength = Math.min(
+        rope.length,
+        Math.max(tuning.minRopeLength, rope.length - tuning.reelSpeed * FIXED_DT)
       );
       rope = {
         anchor: rope.anchor,
