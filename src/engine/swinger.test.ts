@@ -25,6 +25,41 @@ describe("swinger", () => {
     expect(next.position.y).toBeLessThan(100);
   });
 
+  it("S-SPEED: 空中でのスイングで速度 50 m/s 超に達することの実測検証", () => {
+    let state: Swinger = {
+      position: vec3(0, 350, 0),
+      velocity: vec3(0, 5, 30),
+      rope: null,
+      grounded: false,
+      accumulator: 0,
+    };
+
+    const anchor = vec3(0, 300, 250);
+
+    for (let i = 0; i < 150; i++) {
+      state = advanceSwinger(state, FIXED_DT, DEFAULT_TUNING);
+    }
+
+    state = attachRope(state, anchor, DEFAULT_TUNING);
+
+    let maxSpeed = 0;
+    for (let i = 0; i < 300; i++) {
+      state = advanceSwinger(state, FIXED_DT, DEFAULT_TUNING, { reeling: true });
+      const currentSpeed = length(state.velocity);
+      if (currentSpeed > maxSpeed) {
+        maxSpeed = currentSpeed;
+      }
+    }
+
+    state = detachRope(state);
+    const postReleaseSpeed = length(state.velocity);
+    if (postReleaseSpeed > maxSpeed) {
+      maxSpeed = postReleaseSpeed;
+    }
+
+    expect(maxSpeed).toBeGreaterThan(50.0);
+  });
+
   it("S2: ワイヤーなし・水平初速ありで空気抵抗が減速のみに働く", () => {
     let state: Swinger = {
       position: vec3(0, 100, 0),

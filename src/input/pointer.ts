@@ -75,26 +75,26 @@ export function setupPointerInput(
   callbacks?: PointerCallbacks
 ): PointerInputManager {
   let isDown = false;
-  let currentNDC: NDC | null = null;
+  let currentNDC: NDC = { x: 0, y: 0 };
+
+  const updateNDC = (e: PointerEvent) => {
+    const rect = container.getBoundingClientRect();
+    currentNDC = toNormalizedDeviceCoordinates(e.clientX, e.clientY, rect);
+  };
 
   const handlePointerDown = (e: PointerEvent) => {
     isDown = true;
-    const rect = container.getBoundingClientRect();
-    currentNDC = toNormalizedDeviceCoordinates(e.clientX, e.clientY, rect);
+    updateNDC(e);
     callbacks?.onPress?.(currentNDC);
   };
 
   const handlePointerMove = (e: PointerEvent) => {
-    if (isDown) {
-      const rect = container.getBoundingClientRect();
-      currentNDC = toNormalizedDeviceCoordinates(e.clientX, e.clientY, rect);
-    }
+    updateNDC(e);
   };
 
   const handlePointerUp = () => {
     if (isDown) {
       isDown = false;
-      currentNDC = null;
       callbacks?.onRelease?.();
     }
   };
