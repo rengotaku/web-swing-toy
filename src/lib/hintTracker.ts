@@ -21,8 +21,17 @@ export function createHintTracker(
 ): HintTracker {
   const getStorage = (): StorageAdapter | null => {
     if (storage !== undefined) return storage;
-    if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage;
+    // storage を禁止した iframe やサイトデータをブロックした設定では、
+    // window.localStorage は「参照するだけ」で SecurityError を投げる。
+    // ここで例外が漏れると初期化ごと失敗し、呼び出し側からは WebGL が
+    // 使えないのと区別がつかず、ゲーム全体が案内画面に落ちる。
+    // ヒントを覚えられないだけのことで遊べなくしない。
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage;
+      }
+    } catch {
+      return null;
     }
     return null;
   };

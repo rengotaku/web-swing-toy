@@ -68,7 +68,13 @@ body {
     r 90ms ease-out;
 }
 
+/* 接続中は退く。ワイヤーがその役目を引き継ぐ。 */
+.reticle-root {
+  transition: opacity 140ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .reticle-root,
   .reticle-bracket,
   .reticle-dot {
     transition: none;

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { HudStore } from "../lib/hudStore";
 
 type ReticleProps = {
@@ -14,10 +14,29 @@ type ReticleProps = {
  *
  * スナップは短く切る。機械が噛み合う動きであって、なめらかに追従する
  * ものではない。
+ *
+ * 位置はカーソルそのもの。狙いはポインタ位置の ray で判定しているので、
+ * 画面中央に固定して描くと「照準が指している場所」と「実際に掴む場所」が
+ * 食い違う。位置だけは間引いたストアを通さず DOM へ直接書く（12Hz だと
+ * カーソルから目に見えて遅れる）。
  */
 export function Reticle({ store }: ReticleProps) {
   const data = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  const { locked } = data.reticle;
+  const { locked, attached } = data.reticle;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const move = (e: PointerEvent) => {
+      el.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+    };
+    // 起動直後、まだ一度もポインタが動いていない間は画面中央に置く
+    // （判定側も中央を既定にしている）。
+    el.style.transform = `translate3d(${window.innerWidth / 2}px, ${window.innerHeight / 2}px, 0) translate(-50%, -50%)`;
+    window.addEventListener("pointermove", move);
+    return () => window.removeEventListener("pointermove", move);
+  }, []);
 
   // ブラケットの位置。ロック時は内側へ寄る。
   const inset = locked ? 7 : 15;
@@ -31,9 +50,12 @@ export function Reticle({ store }: ReticleProps) {
 
   return (
     <div
+      ref={ref}
       data-testid="reticle"
       data-locked={locked}
-      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      data-attached={attached}
+      className="reticle-root pointer-events-none absolute top-0 left-0"
+      style={{ opacity: attached ? 0 : 1 }}
       aria-hidden="true"
     >
       <svg width="48" height="48" viewBox="0 0 48 48" className="overflow-visible">

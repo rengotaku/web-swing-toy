@@ -91,7 +91,11 @@ export function createGame(container: HTMLElement): Game | null {
   let relaunchStartPos = { x: 0, y: 0, z: 0 };
 
   // レティクル状態（毎フレーム更新。配信側で離散変化として即時通知される）
-  let currentReticleState: ReticleState = { locked: false, distance: null };
+  let currentReticleState: ReticleState = {
+    locked: false,
+    distance: null,
+    attached: false,
+  };
 
   // 5. Pointer Input setup
   const pointerInput = setupPointerInput(container, {
@@ -210,6 +214,7 @@ export function createGame(container: HTMLElement): Game | null {
       currentReticleState = {
         locked: hit !== null,
         distance: hit ? hit.distance : null,
+        attached: swinger.rope !== null,
       };
     }
 

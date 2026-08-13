@@ -21,7 +21,11 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
     let currentTime = 1000;
     // 最初の更新 (lastEmitTime = 0 から elapsed >= intervalMs なので即時発火)
     store.update(
-      { speed: 10, altitude: 50, reticle: { locked: false, distance: null } },
+      {
+        speed: 10,
+        altitude: 50,
+        reticle: { locked: false, distance: null, attached: false },
+      },
       currentTime
     );
     expect(callback).toHaveBeenCalledTimes(1);
@@ -30,7 +34,11 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
     for (let i = 1; i <= 5; i++) {
       currentTime += 10;
       store.update(
-        { speed: 10 + i, altitude: 50 + i, reticle: { locked: false, distance: null } },
+        {
+          speed: 10 + i,
+          altitude: 50 + i,
+          reticle: { locked: false, distance: null, attached: false },
+        },
         currentTime
       );
     }
@@ -57,20 +65,32 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
     let currentTime = 1000;
     // 初回発火
     store.update(
-      { speed: 0, altitude: 0, reticle: { locked: false, distance: null } },
+      {
+        speed: 0,
+        altitude: 0,
+        reticle: { locked: false, distance: null, attached: false },
+      },
       currentTime
     );
 
     // 間引き期間中に複数回更新
     currentTime += 20;
     store.update(
-      { speed: 10, altitude: 10, reticle: { locked: false, distance: null } },
+      {
+        speed: 10,
+        altitude: 10,
+        reticle: { locked: false, distance: null, attached: false },
+      },
       currentTime
     );
 
     currentTime += 20;
     store.update(
-      { speed: 20, altitude: 20, reticle: { locked: true, distance: 15 } },
+      {
+        speed: 20,
+        altitude: 20,
+        reticle: { locked: true, distance: 15, attached: false },
+      },
       currentTime
     );
 
@@ -78,7 +98,7 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
     const latestData: HudData = {
       speed: 55.5,
       altitude: 120.0,
-      reticle: { locked: true, distance: 42.5 },
+      reticle: { locked: true, distance: 42.5, attached: false },
     };
     store.update(latestData, currentTime);
 
@@ -101,14 +121,25 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
 
     let t = 1000;
     store.update(
-      { speed: 10, altitude: 50, reticle: { locked: false, distance: null } },
+      {
+        speed: 10,
+        altitude: 50,
+        reticle: { locked: false, distance: null, attached: false },
+      },
       t
     );
     expect(callback).toHaveBeenCalledTimes(1);
 
     // 間引き窓の内側 (10ms 後) でロックが成立した
     t += 10;
-    store.update({ speed: 10, altitude: 50, reticle: { locked: true, distance: 42 } }, t);
+    store.update(
+      {
+        speed: 10,
+        altitude: 50,
+        reticle: { locked: true, distance: 42, attached: false },
+      },
+      t
+    );
 
     expect(callback).toHaveBeenCalledTimes(2);
     expect(store.getSnapshot().reticle.locked).toBe(true);
@@ -124,13 +155,24 @@ describe("T1 & T2: HudStore (Throttling & Preservation)", () => {
     store.subscribe(callback);
 
     let t = 1000;
-    store.update({ speed: 10, altitude: 50, reticle: { locked: true, distance: 40 } }, t);
+    store.update(
+      {
+        speed: 10,
+        altitude: 50,
+        reticle: { locked: true, distance: 40, attached: false },
+      },
+      t
+    );
     expect(callback).toHaveBeenCalledTimes(1);
 
     for (let i = 1; i <= 5; i++) {
       t += 10;
       store.update(
-        { speed: 10, altitude: 50, reticle: { locked: true, distance: 40 + i } },
+        {
+          speed: 10,
+          altitude: 50,
+          reticle: { locked: true, distance: 40 + i, attached: false },
+        },
         t
       );
     }

@@ -1,6 +1,8 @@
 export type ReticleState = {
   locked: boolean;
   distance: number | null;
+  /** ワイヤー接続中。接続中はワイヤー自体が役目を引き継ぐので照準は退く。 */
+  attached: boolean;
 };
 
 export type HudData = {
@@ -33,7 +35,7 @@ export function createHudStore(intervalMs: number = 1000 / 12): HudStore {
   let currentSnapshot: HudData = {
     speed: 0,
     altitude: 0,
-    reticle: { locked: false, distance: null },
+    reticle: { locked: false, distance: null, attached: false },
   };
 
   let pendingData: HudData | null = null;
@@ -83,9 +85,13 @@ export function createHudStore(intervalMs: number = 1000 / 12): HudStore {
     // ロック状態が変わった瞬間だけは間引きを飛ばす。照準の応答が遅れると
     // 「狙えているのに反応しない」に見える。距離の数値の変化では飛ばさない
     // (連続値なので、これで飛ばすと間引きが実質無効になる)。
-    const lockChanged = data.reticle.locked !== currentSnapshot.reticle.locked;
+    // 照準は離散的な状態なので、変化した瞬間だけ間引きを飛ばす。
+    // 位置は乗せていない（カーソル追従は 12Hz では遅れるため、DOM へ直接書く）。
+    const stateChanged =
+      data.reticle.locked !== currentSnapshot.reticle.locked ||
+      data.reticle.attached !== currentSnapshot.reticle.attached;
 
-    if (elapsed >= intervalMs || lockChanged) {
+    if (elapsed >= intervalMs || stateChanged) {
       if (timerId !== null) {
         clearTimeout(timerId);
         timerId = null;
