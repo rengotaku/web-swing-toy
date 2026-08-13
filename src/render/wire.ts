@@ -37,6 +37,43 @@ export function setupWire(initialWidth?: number, initialHeight?: number): WireMa
 
   const mesh = new Line2(geometry, material);
   mesh.visible = false;
+  // 視錐台判定はこのメッシュでは使わない（常にプレイヤーの手元にあり、
+  // 境界球を毎フレーム測り直すほうが無駄）。
+  mesh.frustumCulled = false;
+
+  // LineGeometry.setPositions() は呼ぶたびに新しい InstancedInterleavedBuffer を
+  // 確保する。ワイヤーを繋いでいる間は毎フレーム呼ばれるので、そのままだと
+  // 属性と WebGL バッファの再確保が延々と続き、長く遊ぶほどメモリが増えて
+  // 描画が定期的にカクつく。
+  //
+  // 点の数は固定なので、初回だけ setPositions で確保し、以降は確保済みの
+  // インターリーブ配列へ直接書いて needsUpdate を立てる。
+  // LineSegmentsGeometry の並びは 1 セグメントあたり [startXYZ, endXYZ]。
+  // 上のコンストラクタで setPositions 済みなので、以降は書き込みのみでよい。
+  let allocated = true;
+  const writePositions = () => {
+    if (!allocated) {
+      geometry.setPositions(positions);
+      allocated = true;
+      return;
+    }
+    const attr = geometry.getAttribute(
+      "instanceStart"
+    ) as THREE.InterleavedBufferAttribute;
+    const arr = attr.data.array as Float32Array;
+    for (let seg = 0; seg < NUM_POINTS - 1; seg++) {
+      const a = seg * 3;
+      const b = (seg + 1) * 3;
+      const o = seg * 6;
+      arr[o] = positions[a];
+      arr[o + 1] = positions[a + 1];
+      arr[o + 2] = positions[a + 2];
+      arr[o + 3] = positions[b];
+      arr[o + 4] = positions[b + 1];
+      arr[o + 5] = positions[b + 2];
+    }
+    attr.data.needsUpdate = true;
+  };
 
   const update = (swinger: Swinger) => {
     if (!swinger.rope) {
@@ -76,7 +113,7 @@ export function setupWire(initialWidth?: number, initialHeight?: number): WireMa
       positions[i * 3 + 2] = lz;
     }
 
-    geometry.setPositions(positions);
+    writePositions();
   };
 
   const setLineWidth = (widthPx: number) => {
