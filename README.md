@@ -1,9 +1,17 @@
 # Web Swing Toy
 
+**Play it: https://rengotaku.github.io/web-swing-toy/**
+
 Hold the mouse to fire a wire at a building, swing off it, let go and fly.
 There is no score and no goal — the movement itself is the whole thing.
 
-> Status: scaffolding. The engine is not wired up yet.
+Aim with the cursor. The reticle brackets snap shut when something in range is
+grabbable. Hold to reel in and build speed, release at the bottom of the arc to
+keep it. Land and stop moving and you are lifted back into the sky, because a
+toy you can get stuck in is a toy you stop touching.
+
+Needs WebGL2. If your browser has hardware acceleration turned off, the page
+tells you so instead of showing a blank screen.
 
 ## What it is
 
@@ -25,10 +33,27 @@ Everything goes through the Makefile.
 
 ```bash
 make install   # install dependencies
+make play      # open the toy in an isolated Chrome profile
 make run       # Vite dev server on :5173
 make ci        # lint + format check + tests with coverage + build
 make help      # all targets
 ```
+
+`make play` opens Chrome with its own `--user-data-dir`, so it never touches the
+settings, tabs or extensions of the browser you use for everything else. That
+matters if you keep hardware acceleration off in your day-to-day browser: this
+toy needs WebGL2, and the separate profile has it on without you changing
+anything.
+
+## Deployment
+
+`main` deploys to GitHub Pages through `.github/workflows/deploy.yml`. The
+workflow lints, tests and builds before publishing, so a red build never reaches
+the live URL.
+
+Pages serves from a repository subpath, so the build takes `BASE_PATH`. Building
+without it produces absolute asset paths that 404 in production while working
+perfectly on localhost.
 
 ## Layout
 

@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は同時に 1 つだけ。進行中のデプロイは中断せず終わらせる
+# (途中で切ると公開中のサイトが壊れた状態で残りうる)。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 検証を通してから公開する。壊れたビルドを公開しないための門で、
+      # ここを飛ばすと「CI は赤いのにサイトは更新されている」状態になりうる。
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        # GitHub Pages はリポジトリ名のサブパス配信なので base を渡す。
+        # 渡し忘れるとアセットが 404 になり、公開先だけ白画面になる。
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # 未設定のリポジトリでも、このワークフロー自身が Pages を有効化する。
+          # 手で管理画面を触らないと動かない状態にしない。
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
