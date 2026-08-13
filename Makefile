@@ -66,7 +66,9 @@ play:
 	@mkdir -p "$(CHROME_PROFILE)"
 	@echo "opening http://localhost:$(PORT)/ in a separate Chrome profile"
 	@echo "  profile: $(CHROME_PROFILE)  (your default browser is untouched)"
-	@setsid nohup "$(CHROME_BIN)" \
+	@# setsid は macOS の標準環境には無い。無ければ nohup だけで切り離す。
+	@if command -v setsid >/dev/null 2>&1; then DETACH=setsid; else DETACH=""; fi; \
+	$$DETACH nohup "$(CHROME_BIN)" \
 		--user-data-dir="$(CHROME_PROFILE)" \
 		--no-first-run --no-default-browser-check \
 		"http://localhost:$(PORT)/" >/dev/null 2>&1 < /dev/null &

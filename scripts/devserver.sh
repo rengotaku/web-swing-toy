@@ -87,7 +87,13 @@ case "$CMD" in
     fi
     log=${3:-/tmp/web-swing-toy-dev-$PORT.log}
     echo "starting dev server on :$PORT (log: $log)"
-    (cd "$REPO_DIR" && setsid nohup npm run dev -- --port "$PORT" --strictPort >"$log" 2>&1 </dev/null &)
+    # setsid は macOS の標準環境には無い。無ければ nohup だけで切り離す
+    # (端末を閉じても生き残る。プロセスグループが分かれないだけ)。
+    if command -v setsid >/dev/null 2>&1; then
+      (cd "$REPO_DIR" && setsid nohup npm run dev -- --port "$PORT" --strictPort >"$log" 2>&1 </dev/null &)
+    else
+      (cd "$REPO_DIR" && nohup npm run dev -- --port "$PORT" --strictPort >"$log" 2>&1 </dev/null &)
+    fi
     i=0
     while [ "$i" -lt 30 ]; do
       if [ -n "$(owned_pids)" ]; then exit 0; fi
