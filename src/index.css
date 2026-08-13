@@ -43,3 +43,34 @@ body {
   font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * The HUD sits directly on the sky, which runs from near-black at the zenith
+ * to a bright warm horizon. A panel behind the text would be a box floating
+ * over the view; a shadow keeps the text readable against both ends without
+ * putting any chrome on screen.
+ */
+.hud-readout {
+  text-shadow:
+    0 1px 2px rgb(11 16 32 / 70%),
+    0 0 12px rgb(11 16 32 / 45%);
+}
+
+/*
+ * The reticle locks on: it is a mechanism engaging, not something easing into
+ * place. Keep the transition short enough to read as a snap.
+ */
+.reticle-bracket,
+.reticle-dot {
+  transition:
+    opacity 90ms ease-out,
+    d 90ms ease-out,
+    r 90ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reticle-bracket,
+  .reticle-dot {
+    transition: none;
+  }
+}

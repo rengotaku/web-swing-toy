@@ -8,8 +8,10 @@ export type CityManager = {
 };
 
 const MAX_BUILDINGS = 2000;
-const DRAW_RADIUS = 200;
-const COLOR_SKY_HIGH = "#1b2b52";
+// フォグの開始距離 (300m) より手前で街が途切れると、何も無い space に
+// 建物が湧いて見える。フォグに溶ける距離まで描いてから消す。
+const DRAW_RADIUS = 700;
+const COLOR_INK = "#0b1020";
 
 /**
  * プレイヤー周辺のビル群を InstancedMesh で描画・管理する。
@@ -17,10 +19,12 @@ const COLOR_SKY_HIGH = "#1b2b52";
  */
 export function setupCity(): CityManager {
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+  // 街は明るい水平線を背にした暗いシルエット。画面で唯一の高彩度は
+  // ワイヤーだと決めてあるので、ビルは彩度を持たせず暗いまま置く。
   const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(COLOR_SKY_HIGH),
-    roughness: 0.8,
-    metalness: 0.2,
+    color: new THREE.Color(COLOR_INK),
+    roughness: 1,
+    metalness: 0,
   });
 
   const mesh = new THREE.InstancedMesh(boxGeometry, material, MAX_BUILDINGS);

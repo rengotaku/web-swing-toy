@@ -22,30 +22,33 @@ function createGroundTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d");
 
   if (ctx) {
-    // 地面のベース色 (--ink)
     ctx.fillStyle = COLOR_INK;
     ctx.fillRect(0, 0, 256, 256);
 
-    // 格子線 (--sky-high)
+    // 格子は「動いていることが分かる」ためだけに置く。以前はネオン調の
+    // 明るいグリッドで、地面が空とビルより目立っていた。ここは背景なので、
+    // 存在は分かるが視線を奪わない濃さに留める。
     ctx.strokeStyle = COLOR_SKY_HIGH;
-    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 2;
 
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(256, 0);
     ctx.moveTo(0, 0);
     ctx.lineTo(0, 256);
-    ctx.moveTo(128, 0);
-    ctx.lineTo(128, 256);
-    ctx.moveTo(0, 128);
-    ctx.lineTo(256, 128);
     ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(200, 200);
+  // 2000m の平面に対して 1 マス約 30m。以前は 10m 刻みで、高度 200m から
+  // 浅い角度で見ると線が詰まってモアレになり、地面がビルより明るい面として
+  // 立ち上がっていた（暗いシルエットが手前にある奥行きの読みが反転する）。
+  texture.repeat.set(66, 66);
+  texture.anisotropy = 8;
   texture.needsUpdate = true;
   return texture;
 }
@@ -56,8 +59,15 @@ function createGroundTexture(): THREE.CanvasTexture {
 export function setupScene(): SceneManager {
   const scene = new THREE.Scene();
 
-  // 1. フォグ (同系色 --sky-low)
-  scene.fog = new THREE.Fog(COLOR_SKY_LOW, 20, 250);
+  // 1. フォグ
+  //
+  // 色は水平線の暖色に合わせる。遠くのビルが空へ溶けることで距離が読め、
+  // それが速度感の主要な手がかりになる。
+  //
+  // 範囲を遠くに置くのが要点。近いと（以前は 20〜250m だった）100m 先から
+  // 全部が暖色に溶けて、街のシルエットも「ワイヤーだけが高彩度」という
+  // 方針も同時に壊れる。飛行中は数ブロック先まで見えている必要がある。
+  scene.fog = new THREE.Fog(COLOR_SKY_LOW, 300, 1600);
 
   // 2. 空のグラデーション (大きな球体の内側に ShaderMaterial)
   const skyGeometry = new THREE.SphereGeometry(1000, 32, 16);
@@ -84,7 +94,10 @@ export function setupScene(): SceneManager {
       // リンクが失敗して画面が黒くなる（エラーは console の警告にしか出ない）。
       void main() {
         vec3 nPos = normalize(vLocalPosition);
-        float h = pow(clamp(nPos.y, 0.0, 1.0), 0.45);
+        // 飛行中に画面に映るのは水平線から上 30 度ほど。グラデーションの全域を
+        // その帯に割り当てないと、中間の濁った色しか出ない。仰角 22 度
+        // (sin ≈ 0.38) で濃紺に振り切り、暖色は水平線際の細い帯に留める。
+        float h = smoothstep(0.0, 0.38, nPos.y);
         gl_FragColor = vec4(mix(bottomColor, topColor, h), 1.0);
         #include <colorspace_fragment>
       }
@@ -108,11 +121,18 @@ export function setupScene(): SceneManager {
   scene.add(groundMesh);
 
   // 4. ライト
-  const ambientLight = new THREE.AmbientLight(COLOR_HUD, 0.6);
+  //
+  // ビルは「明るい水平線を背にした暗いシルエット」に見せる。以前は暖色の
+  // 指向光を強度 0.8 で当てていたため、街が文字どおりオレンジに塗られ、
+  // 画面から低彩度が失われていた。
+  //
+  // 環境光は寒色を弱く。指向光は面の向きが分かる最小限だけ入れる
+  // (完全に潰すと立体が板になり、街が塊にしか見えなくなる)。
+  const ambientLight = new THREE.AmbientLight(COLOR_SKY_HIGH, 0.9);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(COLOR_SKY_LOW, 0.8);
-  dirLight.position.set(50, 100, 50);
+  const dirLight = new THREE.DirectionalLight(COLOR_HUD, 0.35);
+  dirLight.position.set(60, 120, 40);
   scene.add(dirLight);
 
   // カメラ追従: 空球体の平行移動 & 地面の格子単位スナップ追従 (泳ぎ防止)
